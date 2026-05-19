@@ -107,7 +107,6 @@
       if (!res.ok) throw new Error();
       const data = await res.json();
       transcript = data.transcript;
-      await summarize();
     } catch {
       error = 'Fehler bei der Transkription. Bitte erneut versuchen.';
       audioFileName = '';
