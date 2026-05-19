@@ -1,11 +1,9 @@
 <script lang="ts">
   import '../app.css';
 
-  type Example = { id: string; label: string; transcript: string };
   type TodoItem = { text: string; assignee: string; priority: string };
   type Result = { summary: string; decisions: string[]; todos: TodoItem[] };
 
-  let examples = $state<Example[]>([]);
   let transcript = $state('');
   let loading = $state(false);
   let result = $state<Result | null>(null);
@@ -24,18 +22,6 @@
     { icon: '📌', label: 'Entscheidungen erkannt' },
     { icon: '✅', label: 'To-Dos extrahiert' },
   ];
-
-  import { onMount } from 'svelte';
-  onMount(async () => {
-    const res = await fetch('/api/examples');
-    examples = await res.json();
-  });
-
-  function selectExample(ex: Example) {
-    transcript = ex.transcript;
-    result = null;
-    error = '';
-  }
 
   async function runSteps() {
     for (let i = 0; i < STEPS.length; i++) {
@@ -199,19 +185,8 @@
           <span class="panel-hint">Ctrl+Enter zum Analysieren</span>
         </div>
 
-        {#if examples.length > 0}
-          <div class="examples">
-            <p class="examples-label">Beispiele:</p>
-            <div class="example-chips">
-              {#each examples as ex}
-                <button class="example-chip" onclick={() => selectExample(ex)}>{ex.label}</button>
-              {/each}
-            </div>
-          </div>
-        {/if}
-
         <div class="audio-examples-row">
-          <span class="examples-label">Audio-Beispiele:</span>
+          <span class="examples-label">Beispiele:</span>
           <div class="audio-example-list">
             {#each AUDIO_EXAMPLES as ex}
               <div class="audio-example-item">
