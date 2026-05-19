@@ -559,14 +559,14 @@
   .dropzone-label { font-size: 0.82rem; color: #c8d8e4; font-weight: 500; }
   .dropzone {
     display: flex; align-items: center; justify-content: center; gap: 0.6rem;
-    border: 1.5px dashed #2a3d55; border-radius: 10px; padding: 0.85rem 1rem;
-    font-size: 0.82rem; color: #94a3b8; cursor: pointer;
-    transition: all 0.2s; text-align: center; background: #162032;
+    border: 2px dashed #4a6080; border-radius: 10px; padding: 1rem 1rem;
+    font-size: 0.82rem; color: #b0bfcc; cursor: pointer;
+    transition: all 0.2s; text-align: center; background: rgba(255,255,255,0.02);
   }
   .dropzone:hover, .dropzone.drag-over {
-    border-color: #fbbf24; color: #e2e8f0; background: rgba(251,191,36,0.04);
+    border-color: #fbbf24; color: #e2e8f0; background: rgba(251,191,36,0.05);
   }
-  .dropzone.busy { cursor: default; border-color: #3d4f67; }
+  .dropzone.busy { cursor: default; border-color: #3d4f67; color: #94a3b8; }
   .spinner-dark {
     width: 14px; height: 14px; border: 2px solid rgba(148,163,184,0.2);
     border-top-color: #94a3b8; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0;
