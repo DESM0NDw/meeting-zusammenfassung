@@ -1,6 +1,6 @@
 import os
 import json
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from groq import Groq
@@ -81,6 +81,22 @@ groq_client = Groq(api_key=GROQ_API_KEY)
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+MAX_AUDIO_BYTES = 25 * 1024 * 1024  # 25 MB
+
+
+@app.post("/api/transcribe")
+async def transcribe(file: UploadFile = File(...)):
+    audio_bytes = await file.read()
+    if len(audio_bytes) > MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail="Datei zu groß (max. 25 MB)")
+    transcription = groq_client.audio.transcriptions.create(
+        file=(file.filename, audio_bytes, file.content_type or "audio/mpeg"),
+        model="whisper-large-v3-turbo",
+        response_format="json",
+    )
+    return {"transcript": transcription.text}
 
 
 @app.get("/api/examples")

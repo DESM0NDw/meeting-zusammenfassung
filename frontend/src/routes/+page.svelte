@@ -11,6 +11,9 @@
   let result = $state<Result | null>(null);
   let error = $state('');
   let activeStep = $state(-1);
+  let transcribing = $state(false);
+  let audioFileName = $state('');
+  let draggingAudio = $state(false);
 
   const PRIORITY_ORDER: Record<string, number> = { Hoch: 0, Mittel: 1, Niedrig: 2 };
   const PRIORITY_CLASS: Record<string, string> = { Hoch: 'prio-high', Mittel: 'prio-mid', Niedrig: 'prio-low' };
@@ -71,6 +74,54 @@
 
   function onKeydown(e: KeyboardEvent) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') summarize();
+  }
+
+  const AUDIO_EXAMPLES = [
+    { id: 'sprint',   label: 'Sprint Planning' },
+    { id: 'strategy', label: 'Q3-Strategie' },
+    { id: 'retro',    label: 'Retrospektive' },
+  ];
+
+  async function transcribeAudioExample(id: string) {
+    const res = await fetch(`/audio/${id}.mp3`);
+    const blob = await res.blob();
+    const file = new File([blob], `${id}.mp3`, { type: 'audio/mpeg' });
+    await transcribeAudio(file);
+  }
+
+  async function transcribeAudio(file: File) {
+    if (transcribing || loading) return;
+    transcribing = true;
+    audioFileName = file.name;
+    result = null;
+    error = '';
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/transcribe', { method: 'POST', body: formData });
+      if (res.status === 413) { error = 'Datei zu groß (max. 25 MB).'; return; }
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      transcript = data.transcript;
+      await summarize();
+    } catch {
+      error = 'Fehler bei der Transkription. Bitte erneut versuchen.';
+      audioFileName = '';
+    } finally {
+      transcribing = false;
+    }
+  }
+
+  function onAudioDrop(e: DragEvent) {
+    e.preventDefault();
+    draggingAudio = false;
+    const file = e.dataTransfer?.files[0];
+    if (file && file.type.startsWith('audio/')) transcribeAudio(file);
+  }
+
+  function onAudioInput(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) transcribeAudio(file);
   }
 </script>
 
@@ -140,6 +191,46 @@
             </div>
           </div>
         {/if}
+
+        <div class="audio-examples-row">
+          <span class="examples-label">Audio-Beispiele:</span>
+          <div class="example-chips">
+            {#each AUDIO_EXAMPLES as ex}
+              <button class="example-chip audio-chip" onclick={() => transcribeAudioExample(ex.id)} disabled={transcribing || loading}>
+                <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+                </svg>
+                {ex.label}
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <label class="dropzone-label">Audio hochladen</label>
+        <label
+          class="dropzone {draggingAudio ? 'drag-over' : ''} {transcribing ? 'busy' : ''}"
+          ondragover={(e) => { e.preventDefault(); draggingAudio = true; }}
+          ondragleave={() => draggingAudio = false}
+          ondrop={onAudioDrop}
+          role="button"
+          tabindex="0"
+        >
+          {#if transcribing}
+            <span class="spinner-dark"></span>
+            <span>Transkribiere <strong>{audioFileName}</strong>…</span>
+          {:else if audioFileName}
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="color:#22c55e;flex-shrink:0">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+            <span style="color:#22c55e">{audioFileName} — Transkript übernommen</span>
+          {:else}
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="flex-shrink:0">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+            </svg>
+            <span>Audio ablegen oder <u>klicken</u> — MP3, M4A, WAV · max. 25 MB</span>
+          {/if}
+          <input type="file" accept="audio/*" style="display:none" onchange={onAudioInput} disabled={transcribing || loading} />
+        </label>
 
         <div class="field">
           <label for="transcript">Transcript</label>
@@ -300,20 +391,20 @@
     background: #1e2d42; border-bottom: 1px solid #243447;
     padding: 0.75rem 1.25rem; display: flex; flex-direction: column; align-items: center;
   }
-  .flow-label { font-size: 0.68rem; color: #94a3b8; margin-bottom: 0.5rem; }
+  .flow-label { font-size: 0.75rem; color: #b0bfcc; margin-bottom: 0.5rem; }
   .flow-steps { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
   .flow-step {
     display: flex; align-items: center; gap: 0.4rem;
     background: #162032; border: 1px solid #243447;
     border-radius: 8px; padding: 0.35rem 0.65rem;
-    font-size: 0.75rem; color: #94a3b8; transition: all 0.3s;
+    font-size: 0.82rem; color: #b0bfcc; transition: all 0.3s;
   }
   .flow-step.active { border-color: #fbbf24; color: #fbbf24; background: rgba(251,191,36,0.06); box-shadow: 0 0 12px rgba(251,191,36,0.15); }
   .flow-step.done { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.06); }
   .step-icon { font-size: 0.9rem; }
   .flow-arrow { font-size: 0.75rem; color: #475569; transition: color 0.3s; }
   .flow-arrow.done { color: #22c55e; }
-  .flow-hint { font-size: 0.65rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+  .flow-hint { font-size: 0.73rem; color: #94a3b8; margin-top: 0.5rem; text-align: center; }
 
   main { flex: 1; max-width: 1200px; width: 100%; margin: 0 auto; padding: 1.25rem; }
   .content { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
@@ -324,20 +415,20 @@
   }
   .panel-header { display: flex; align-items: center; justify-content: space-between; }
   h2 { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; }
-  .panel-hint { font-size: 0.65rem; color: #64748b; }
+  .panel-hint { font-size: 0.73rem; color: #94a3b8; }
 
   .examples { display: flex; flex-direction: column; gap: 0.4rem; }
-  .examples-label { font-size: 0.68rem; color: #94a3b8; }
+  .examples-label { font-size: 0.75rem; color: #b0bfcc; }
   .example-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
   .example-chip {
-    font-size: 0.72rem; color: #94a3b8; background: #162032;
+    font-size: 0.8rem; color: #b0bfcc; background: #162032;
     border: 1px solid #2a3d55; padding: 0.25rem 0.6rem; border-radius: 999px;
     cursor: pointer; transition: all 0.15s; text-align: left;
   }
   .example-chip:hover { background: #263548; color: #f1f5f9; border-color: #fbbf24; }
 
   .field { display: flex; flex-direction: column; gap: 0.35rem; }
-  label { font-size: 0.72rem; color: #94a3b8; font-weight: 500; }
+  label { font-size: 0.82rem; color: #c8d8e4; font-weight: 500; }
   textarea {
     background: #162032; border: 1px solid #2a3d55; color: #e2e8f0;
     border-radius: 10px; padding: 0.55rem 0.85rem; font-size: 0.83rem;
@@ -372,17 +463,17 @@
   .result { display: flex; flex-direction: column; gap: 1.25rem; }
   .result-section { display: flex; flex-direction: column; gap: 0.5rem; }
   .result-section h3 {
-    font-size: 0.72rem; font-weight: 600; color: #94a3b8;
+    font-size: 0.76rem; font-weight: 600; color: #b0bfcc;
     text-transform: uppercase; letter-spacing: 0.05em;
     display: flex; align-items: center; gap: 0.35rem;
   }
-  .summary-text { font-size: 0.83rem; color: #cbd5e1; line-height: 1.65; }
+  .summary-text { font-size: 0.92rem; color: #e2eaf2; line-height: 1.65; }
 
   .decision-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
   .decision-list li {
     display: flex; align-items: flex-start; gap: 0.6rem;
     background: #162032; border: 1px solid #243447; border-radius: 9px;
-    padding: 0.55rem 0.75rem; font-size: 0.82rem; color: #cbd5e1; line-height: 1.5;
+    padding: 0.55rem 0.75rem; font-size: 0.9rem; color: #e2eaf2; line-height: 1.5;
   }
   .decision-dot {
     width: 7px; height: 7px; border-radius: 50%; background: #60a5fa;
@@ -409,9 +500,9 @@
     background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25);
     color: #22c55e; display: flex; align-items: center; justify-content: center;
   }
-  .todo-text { font-size: 0.82rem; color: #cbd5e1; flex: 1; line-height: 1.4; }
+  .todo-text { font-size: 0.9rem; color: #e2eaf2; flex: 1; line-height: 1.4; }
   .priority-badge {
-    font-size: 0.65rem; font-weight: 700; flex-shrink: 0;
+    font-size: 0.7rem; font-weight: 700; flex-shrink: 0;
     padding: 2px 7px; border-radius: 999px;
   }
   .prio-high { color: #f87171; background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25); }
@@ -419,7 +510,7 @@
   .prio-low  { color: #4ade80; background: rgba(74,222,128,0.1);  border: 1px solid rgba(74,222,128,0.25);  }
 
   .assignee-badge {
-    font-size: 0.68rem; font-weight: 600; flex-shrink: 0;
+    font-size: 0.73rem; font-weight: 600; flex-shrink: 0;
     color: #fbbf24; background: rgba(251,191,36,0.1);
     border: 1px solid rgba(251,191,36,0.2); padding: 2px 8px; border-radius: 999px;
   }
@@ -436,6 +527,26 @@
   footer { text-align: center; font-size: 0.68rem; color: #475569; padding: 0.6rem; border-top: 1px solid #243447; }
   footer a { color: #64748b; text-decoration: none; }
   footer a:hover { color: #94a3b8; }
+
+  .audio-examples-row { display: flex; flex-direction: column; gap: 0.4rem; }
+  .audio-chip { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .audio-chip:disabled { opacity: 0.4; cursor: default; }
+
+  .dropzone-label { font-size: 0.82rem; color: #c8d8e4; font-weight: 500; }
+  .dropzone {
+    display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+    border: 1.5px dashed #2a3d55; border-radius: 10px; padding: 0.85rem 1rem;
+    font-size: 0.82rem; color: #94a3b8; cursor: pointer;
+    transition: all 0.2s; text-align: center; background: #162032;
+  }
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: #fbbf24; color: #e2e8f0; background: rgba(251,191,36,0.04);
+  }
+  .dropzone.busy { cursor: default; border-color: #3d4f67; }
+  .spinner-dark {
+    width: 14px; height: 14px; border: 2px solid rgba(148,163,184,0.2);
+    border-top-color: #94a3b8; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0;
+  }
 
   @media (max-width: 768px) {
     .content { grid-template-columns: 1fr; }
