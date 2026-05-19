@@ -201,10 +201,11 @@
                   {/if}
                 </button>
                 <span class="audio-label">{ex.label}</span>
-                <button class="transcribe-btn" onclick={() => transcribeAudioExample(ex.id)} disabled={transcribing || loading} title="Transkribieren">
-                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <button class="transcribe-btn" onclick={() => transcribeAudioExample(ex.id)} disabled={transcribing || loading}>
+                  <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
                   </svg>
+                  Transkribieren
                 </button>
               </div>
             {/each}
@@ -546,11 +547,13 @@
   .play-btn:hover { background: #334d6b; color: #e2e8f0; }
   .play-btn.playing { background: rgba(251,191,36,0.15); border-color: rgba(251,191,36,0.4); color: #fbbf24; }
   .transcribe-btn {
-    display: inline-flex; align-items: center;
-    color: #64748b; background: none; border: none;
-    padding: 0.1rem; cursor: pointer; transition: color 0.15s;
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    font-size: 0.72rem; font-weight: 500;
+    color: #94a3b8; background: #1e2d42; border: 1px solid #2a3d55;
+    padding: 0.15rem 0.5rem; border-radius: 999px;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
   }
-  .transcribe-btn:hover:not(:disabled) { color: #fbbf24; }
+  .transcribe-btn:hover:not(:disabled) { color: #fbbf24; border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.06); }
   .transcribe-btn:disabled { opacity: 0.4; cursor: default; }
 
   .dropzone-label { font-size: 0.82rem; color: #c8d8e4; font-weight: 500; }
