@@ -95,6 +95,7 @@ class SummarizeRequest(BaseModel):
 class TodoItem(BaseModel):
     text: str
     assignee: str
+    priority: str
 
 
 class SummarizeResponse(BaseModel):
@@ -115,8 +116,8 @@ Antworte mit diesem JSON (keine weiteren Erklärungen, nur JSON):
   "summary": "<2-3 Sätze die das Meeting und seine wichtigsten Ergebnisse zusammenfassen>",
   "decisions": ["<getroffene Entscheidung 1>", "<getroffene Entscheidung 2>"],
   "todos": [
-    {{"text": "<konkrete Aufgabe>", "assignee": "<Person oder Team>"}},
-    {{"text": "<konkrete Aufgabe>", "assignee": "<Person oder Team>"}}
+    {{"text": "<konkrete Aufgabe>", "assignee": "<Person oder Team>", "priority": "<Hoch|Mittel|Niedrig>"}},
+    {{"text": "<konkrete Aufgabe>", "assignee": "<Person oder Team>", "priority": "<Hoch|Mittel|Niedrig>"}}
   ]
 }}
 
@@ -124,6 +125,7 @@ Regeln:
 - summary: prägnant, auf Deutsch, 2-3 Sätze
 - decisions: nur wirklich getroffene Entscheidungen (keine Diskussionspunkte)
 - todos: nur konkrete Aufgaben mit klarer Verantwortlichkeit, auf Deutsch
+- priority: Hoch = zeitkritisch oder blockiert andere, Mittel = wichtig aber nicht dringend, Niedrig = nice-to-have
 - Mindestens 2 decisions und 2 todos wenn vorhanden"""
 
     completion = groq_client.chat.completions.create(

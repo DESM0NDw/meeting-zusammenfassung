@@ -2,7 +2,7 @@
   import '../app.css';
 
   type Example = { id: string; label: string; transcript: string };
-  type TodoItem = { text: string; assignee: string };
+  type TodoItem = { text: string; assignee: string; priority: string };
   type Result = { summary: string; decisions: string[]; todos: TodoItem[] };
 
   let examples = $state<Example[]>([]);
@@ -11,6 +11,9 @@
   let result = $state<Result | null>(null);
   let error = $state('');
   let activeStep = $state(-1);
+
+  const PRIORITY_ORDER: Record<string, number> = { Hoch: 0, Mittel: 1, Niedrig: 2 };
+  const PRIORITY_CLASS: Record<string, string> = { Hoch: 'prio-high', Mittel: 'prio-mid', Niedrig: 'prio-low' };
 
   const STEPS = [
     { icon: '📋', label: 'Transcript eingeben' },
@@ -161,7 +164,12 @@
             Meeting zusammenfassen
           {/if}
         </button>
-        <p class="input-hint">Eingaben werden zur Verarbeitung an Groq (USA) übermittelt. Keine echten Meeting-Daten eingeben.</p>
+        <div class="warn-box">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+          </svg>
+          <span>Eingaben werden zur Verarbeitung an <strong>Groq (USA)</strong> übermittelt und können dort gespeichert werden. Bitte <strong>keine echten oder vertraulichen Meeting-Daten</strong> eingeben.</span>
+        </div>
       </div>
 
       <div class="result-panel">
@@ -215,7 +223,7 @@
                 </button>
               </div>
               <ul class="todo-list">
-                {#each result.todos as todo}
+                {#each result.todos.slice().sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 1) - (PRIORITY_ORDER[b.priority] ?? 1)) as todo}
                   <li class="todo-item">
                     <span class="todo-check">
                       <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -223,6 +231,7 @@
                       </svg>
                     </span>
                     <span class="todo-text">{todo.text}</span>
+                    <span class="priority-badge {PRIORITY_CLASS[todo.priority] ?? 'prio-mid'}">{todo.priority}</span>
                     <span class="assignee-badge">{todo.assignee}</span>
                   </li>
                 {/each}
@@ -289,10 +298,10 @@
 
   .flow-bar {
     background: #1e2d42; border-bottom: 1px solid #243447;
-    padding: 0.75rem 1.25rem;
+    padding: 0.75rem 1.25rem; display: flex; flex-direction: column; align-items: center;
   }
   .flow-label { font-size: 0.68rem; color: #94a3b8; margin-bottom: 0.5rem; }
-  .flow-steps { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .flow-steps { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
   .flow-step {
     display: flex; align-items: center; gap: 0.4rem;
     background: #162032; border: 1px solid #243447;
@@ -304,7 +313,7 @@
   .step-icon { font-size: 0.9rem; }
   .flow-arrow { font-size: 0.75rem; color: #475569; transition: color 0.3s; }
   .flow-arrow.done { color: #22c55e; }
-  .flow-hint { font-size: 0.65rem; color: #64748b; margin-top: 0.5rem; }
+  .flow-hint { font-size: 0.65rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
 
   main { flex: 1; max-width: 1200px; width: 100%; margin: 0 auto; padding: 1.25rem; }
   .content { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
@@ -352,7 +361,13 @@
     border-top-color: #1c1917; border-radius: 50%; animation: spin 0.7s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .input-hint { font-size: 0.62rem; color: #64748b; }
+  .warn-box {
+    display: flex; align-items: flex-start; gap: 0.5rem;
+    background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.2);
+    border-radius: 8px; padding: 0.6rem 0.75rem;
+    font-size: 0.75rem; color: #b8900a; line-height: 1.5;
+  }
+  .warn-box strong { color: #d4a820; }
 
   .result { display: flex; flex-direction: column; gap: 1.25rem; }
   .result-section { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -395,6 +410,14 @@
     color: #22c55e; display: flex; align-items: center; justify-content: center;
   }
   .todo-text { font-size: 0.82rem; color: #cbd5e1; flex: 1; line-height: 1.4; }
+  .priority-badge {
+    font-size: 0.65rem; font-weight: 700; flex-shrink: 0;
+    padding: 2px 7px; border-radius: 999px;
+  }
+  .prio-high { color: #f87171; background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25); }
+  .prio-mid  { color: #fbbf24; background: rgba(251,191,36,0.1);  border: 1px solid rgba(251,191,36,0.25);  }
+  .prio-low  { color: #4ade80; background: rgba(74,222,128,0.1);  border: 1px solid rgba(74,222,128,0.25);  }
+
   .assignee-badge {
     font-size: 0.68rem; font-weight: 600; flex-shrink: 0;
     color: #fbbf24; background: rgba(251,191,36,0.1);
