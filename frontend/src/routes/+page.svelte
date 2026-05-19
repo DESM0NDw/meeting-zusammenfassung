@@ -201,11 +201,10 @@
                   {/if}
                 </button>
                 <span class="audio-label">{ex.label}</span>
-                <button class="transcribe-btn" onclick={() => transcribeAudioExample(ex.id)} disabled={transcribing || loading}>
-                  <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <button class="transcribe-btn" onclick={() => transcribeAudioExample(ex.id)} disabled={transcribing || loading} title="Transkribieren">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
                   </svg>
-                  Transkribieren
                 </button>
               </div>
             {/each}
@@ -535,9 +534,9 @@
   footer a:hover { color: #94a3b8; }
 
   .audio-examples-row { display: flex; flex-direction: column; gap: 0.4rem; }
-  .audio-example-list { display: flex; flex-direction: column; gap: 0.35rem; }
-  .audio-example-item { display: flex; align-items: center; gap: 0.5rem; }
-  .audio-label { font-size: 0.8rem; color: #b0bfcc; flex: 1; }
+  .audio-example-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .audio-example-item { display: flex; align-items: center; gap: 0.4rem; background: #162032; border: 1px solid #2a3d55; border-radius: 999px; padding: 0.2rem 0.6rem 0.2rem 0.3rem; }
+  .audio-label { font-size: 0.78rem; color: #b0bfcc; }
   .play-btn {
     width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
     background: #2a3d55; border: 1px solid #3d5570; color: #94a3b8;
@@ -547,12 +546,11 @@
   .play-btn:hover { background: #334d6b; color: #e2e8f0; }
   .play-btn.playing { background: rgba(251,191,36,0.15); border-color: rgba(251,191,36,0.4); color: #fbbf24; }
   .transcribe-btn {
-    display: inline-flex; align-items: center; gap: 0.3rem;
-    font-size: 0.72rem; color: #94a3b8; background: #162032;
-    border: 1px solid #2a3d55; padding: 0.25rem 0.6rem; border-radius: 999px;
-    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    display: inline-flex; align-items: center;
+    color: #64748b; background: none; border: none;
+    padding: 0.1rem; cursor: pointer; transition: color 0.15s;
   }
-  .transcribe-btn:hover:not(:disabled) { background: #263548; color: #f1f5f9; border-color: #fbbf24; }
+  .transcribe-btn:hover:not(:disabled) { color: #fbbf24; }
   .transcribe-btn:disabled { opacity: 0.4; cursor: default; }
 
   .dropzone-label { font-size: 0.82rem; color: #c8d8e4; font-weight: 500; }
