@@ -8,51 +8,31 @@
   let loading = $state(false);
   let result = $state<Result | null>(null);
   let error = $state('');
-  let activeStep = $state(-1);
   let transcribing = $state(false);
   let audioFileName = $state('');
   let draggingAudio = $state(false);
+  let inputPath = $state<'audio' | 'transcript' | null>(null);
 
   const PRIORITY_ORDER: Record<string, number> = { Hoch: 0, Mittel: 1, Niedrig: 2 };
   const PRIORITY_CLASS: Record<string, string> = { Hoch: 'prio-high', Mittel: 'prio-mid', Niedrig: 'prio-low' };
-
-  const STEPS = [
-    { icon: '📋', label: 'Transcript eingeben' },
-    { icon: '🔍', label: 'KI analysiert' },
-    { icon: '📌', label: 'Entscheidungen erkannt' },
-    { icon: '✅', label: 'To-Dos extrahiert' },
-  ];
-
-  async function runSteps() {
-    for (let i = 0; i < STEPS.length; i++) {
-      activeStep = i;
-      await new Promise(r => setTimeout(r, i === 1 ? 800 : 400));
-    }
-  }
 
   async function summarize() {
     if (!transcript.trim() || loading) return;
     loading = true;
     result = null;
     error = '';
-    activeStep = 0;
 
     try {
-      const [res] = await Promise.all([
-        fetch('/api/summarize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transcript }),
-        }),
-        runSteps(),
-      ]);
+      const res = await fetch('/api/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript }),
+      });
 
       if (!res.ok) throw new Error();
       result = await res.json();
-      activeStep = STEPS.length;
     } catch {
       error = 'Fehler bei der Analyse. Bitte erneut versuchen.';
-      activeStep = -1;
     } finally {
       loading = false;
     }
@@ -96,6 +76,7 @@
   async function transcribeAudio(file: File) {
     if (transcribing || loading) return;
     transcribing = true;
+    inputPath = 'audio';
     audioFileName = file.name;
     result = null;
     error = '';
@@ -144,7 +125,7 @@
         </div>
         <div>
           <h1>Meeting-Zusammenfassung</h1>
-          <p class="subtitle">Transcript eingeben &rarr; KI analysiert &rarr; Entscheidungen &amp; To-Dos erhalten</p>
+          <p class="subtitle">Entscheidungen und To-Dos automatisch aus jedem Gesprächsprotokoll</p>
         </div>
       </div>
       <div class="header-right">
@@ -160,19 +141,41 @@
   </header>
 
   <div class="flow-bar">
-    <p class="flow-label">So läuft die Automation:</p>
-    <div class="flow-steps">
-      {#each STEPS as step, i}
-        <div class="flow-step {activeStep === i ? 'active' : ''} {activeStep > i ? 'done' : ''}">
-          <span class="step-icon">{step.icon}</span>
-          <span class="step-label">{step.label}</span>
+    <p class="flow-label">Zwei Wege, eine Analyse:</p>
+    <div class="flow-diagram">
+      <div class="flow-inputs">
+        <div class="flow-step {transcribing ? 'active' : ''} {audioFileName && !transcribing ? 'done' : ''}">
+          <svg class="step-icon" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+          </svg>
+          <span class="step-label">Audio</span>
         </div>
-        {#if i < STEPS.length - 1}
-          <div class="flow-arrow {activeStep > i ? 'done' : ''}">→</div>
-        {/if}
-      {/each}
+        <span class="flow-or">oder</span>
+        <div class="flow-step {inputPath === 'transcript' && !!transcript.trim() ? 'active' : ''} {inputPath === 'transcript' && (loading || !!result) ? 'done' : ''}">
+          <svg class="step-icon" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+          </svg>
+          <span class="step-label">Transcript</span>
+        </div>
+      </div>
+      <div class="flow-merge">→</div>
+      <div class="flow-common">
+        <div class="flow-step {loading ? 'active' : ''} {!!result ? 'done' : ''}">
+          <svg class="step-icon" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+          </svg>
+          <span class="step-label">KI analysiert</span>
+        </div>
+        <div class="flow-arrow {!!result ? 'done' : ''}">→</div>
+        <div class="flow-step {!!result ? 'done' : ''}">
+          <svg class="step-icon" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </svg>
+          <span class="step-label">Ergebnis</span>
+        </div>
+      </div>
     </div>
-    <p class="flow-hint">In der echten Integration wird das Meeting automatisch transkribiert und zusammengefasst — ohne manuelle Eingabe.</p>
+    <p class="flow-hint">Audio wird transkribiert oder Transcript direkt einfügen. Beide Wege laufen in dieselbe Analyse.</p>
   </div>
 
   <main>
@@ -245,6 +248,7 @@
             placeholder="Meeting-Transcript hier einfügen..."
             bind:value={transcript}
             onkeydown={onKeydown}
+            oninput={() => { if (!audioFileName) inputPath = 'transcript'; }}
             disabled={loading}
             rows="16"
           ></textarea>
@@ -352,19 +356,19 @@
 
   <footer>
     Demo von <a href="https://desmond.autonomika.de" target="_blank">Desmond Wong</a>
-    &mdash; Stack: Groq &middot; llama-3.1-8b &middot; SvelteKit
+    &middot; Stack: Groq &middot; llama-3.1-8b &middot; SvelteKit
     &middot; <a href="/impressum">Impressum & Datenschutz</a>
   </footer>
 
 </div>
 
 <style>
-  .wrapper { min-height: 100vh; display: flex; flex-direction: column; background: #162032; }
+  .wrapper { min-height: 100vh; display: flex; flex-direction: column; background: #0c0c0c; }
 
   header {
     position: sticky; top: 0; z-index: 20;
-    background: rgba(22,32,50,0.97); backdrop-filter: blur(8px);
-    border-bottom: 1px solid #243447;
+    background: rgba(12,12,12,0.95); backdrop-filter: blur(8px);
+    border-bottom: 1px solid #1e1e1e;
   }
   .header-inner {
     max-width: 1200px; margin: 0 auto; padding: 0 1.25rem;
@@ -373,7 +377,7 @@
   .header-left { display: flex; align-items: center; gap: 0.75rem; }
   .icon {
     width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
-    background: rgba(251,191,36,0.12); color: #fbbf24;
+    background: rgba(34,211,238,0.1); color: #22d3ee;
     display: flex; align-items: center; justify-content: center;
   }
   h1 { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; }
@@ -382,10 +386,10 @@
   .demo-badge {
     display: inline-flex; align-items: center; gap: 5px;
     font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em;
-    color: #fbbf24; background: rgba(251,191,36,0.1);
-    border: 1px solid rgba(251,191,36,0.2); padding: 2px 8px; border-radius: 999px;
+    color: #22d3ee; background: rgba(34,211,238,0.1);
+    border: 1px solid rgba(34,211,238,0.2); padding: 2px 8px; border-radius: 999px;
   }
-  .pulse { width: 5px; height: 5px; border-radius: 50%; background: #fbbf24; animation: pulse 1.5s ease-in-out infinite; }
+  .pulse { width: 5px; height: 5px; border-radius: 50%; background: #22d3ee; animation: pulse 1.5s ease-in-out infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
   .back-link {
     display: inline-flex; align-items: center; gap: 4px;
@@ -394,20 +398,24 @@
   .back-link:hover { color: #94a3b8; }
 
   .flow-bar {
-    background: #1e2d42; border-bottom: 1px solid #243447;
+    background: #111; border-bottom: 1px solid #1e1e1e;
     padding: 0.75rem 1.25rem; display: flex; flex-direction: column; align-items: center;
   }
   .flow-label { font-size: 0.75rem; color: #b0bfcc; margin-bottom: 0.5rem; }
-  .flow-steps { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
+  .flow-diagram { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; justify-content: center; }
+  .flow-inputs { display: flex; flex-direction: column; align-items: stretch; gap: 0.3rem; }
+  .flow-or { font-size: 0.65rem; color: #475569; text-align: center; font-style: italic; }
+  .flow-merge { font-size: 0.75rem; color: #475569; flex-shrink: 0; }
+  .flow-common { display: flex; align-items: center; gap: 0.5rem; }
   .flow-step {
     display: flex; align-items: center; gap: 0.4rem;
-    background: #162032; border: 1px solid #243447;
+    background: #0c0c0c; border: 1px solid #1e1e1e;
     border-radius: 8px; padding: 0.35rem 0.65rem;
     font-size: 0.82rem; color: #b0bfcc; transition: all 0.3s;
   }
-  .flow-step.active { border-color: #fbbf24; color: #fbbf24; background: rgba(251,191,36,0.06); box-shadow: 0 0 12px rgba(251,191,36,0.15); }
+  .flow-step.active { border-color: #22d3ee; color: #22d3ee; background: rgba(34,211,238,0.06); }
   .flow-step.done { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.06); }
-  .step-icon { font-size: 0.9rem; }
+  .step-icon { flex-shrink: 0; }
   .flow-arrow { font-size: 0.75rem; color: #475569; transition: color 0.3s; }
   .flow-arrow.done { color: #22c55e; }
   .flow-hint { font-size: 0.73rem; color: #94a3b8; margin-top: 0.5rem; text-align: center; }
@@ -416,7 +424,7 @@
   .content { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
 
   .input-panel, .result-panel {
-    background: #1e2d42; border: 1px solid #243447; border-radius: 14px;
+    background: #111; border: 1px solid #1e1e1e; border-radius: 14px;
     padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;
   }
   .panel-header { display: flex; align-items: center; justify-content: space-between; }
@@ -427,35 +435,35 @@
   .examples-label { font-size: 0.75rem; color: #b0bfcc; }
   .example-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
   .example-chip {
-    font-size: 0.8rem; color: #b0bfcc; background: #162032;
-    border: 1px solid #2a3d55; padding: 0.25rem 0.6rem; border-radius: 999px;
+    font-size: 0.8rem; color: #b0bfcc; background: #0c0c0c;
+    border: 1px solid #252525; padding: 0.25rem 0.6rem; border-radius: 999px;
     cursor: pointer; transition: all 0.15s; text-align: left;
   }
-  .example-chip:hover { background: #263548; color: #f1f5f9; border-color: #fbbf24; }
+  .example-chip:hover { background: #1a1a1a; color: #f1f5f9; border-color: #22d3ee; }
 
   .field { display: flex; flex-direction: column; gap: 0.35rem; }
   label { font-size: 0.82rem; color: #c8d8e4; font-weight: 500; }
   textarea {
-    background: #162032; border: 1px solid #2a3d55; color: #e2e8f0;
+    background: #0c0c0c; border: 1px solid #252525; color: #e2e8f0;
     border-radius: 10px; padding: 0.55rem 0.85rem; font-size: 0.83rem;
     outline: none; transition: border-color 0.15s; resize: vertical;
     font-family: inherit;
   }
-  textarea:focus { border-color: #fbbf24; }
+  textarea:focus { border-color: #22d3ee; }
   textarea::placeholder { color: #475569; }
   textarea:disabled { opacity: 0.5; }
 
   .analyze-btn {
     display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-    background: #fbbf24; color: #1c1917; border: none;
+    background: #22d3ee; color: #000; border: none;
     border-radius: 10px; padding: 0.65rem 1rem; font-size: 0.85rem; font-weight: 600;
     cursor: pointer; transition: background 0.15s;
   }
-  .analyze-btn:hover:not(:disabled) { background: #f59e0b; }
+  .analyze-btn:hover:not(:disabled) { background: #06b6d4; }
   .analyze-btn:disabled { opacity: 0.4; cursor: default; }
   .spinner {
-    width: 14px; height: 14px; border: 2px solid rgba(28,25,23,0.3);
-    border-top-color: #1c1917; border-radius: 50%; animation: spin 0.7s linear infinite;
+    width: 14px; height: 14px; border: 2px solid rgba(0,0,0,0.3);
+    border-top-color: #000; border-radius: 50%; animation: spin 0.7s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   .warn-box {
@@ -478,7 +486,7 @@
   .decision-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
   .decision-list li {
     display: flex; align-items: flex-start; gap: 0.6rem;
-    background: #162032; border: 1px solid #243447; border-radius: 9px;
+    background: #0c0c0c; border: 1px solid #1e1e1e; border-radius: 9px;
     padding: 0.55rem 0.75rem; font-size: 0.9rem; color: #e2eaf2; line-height: 1.5;
   }
   .decision-dot {
@@ -489,16 +497,16 @@
   .todos-header { display: flex; align-items: center; justify-content: space-between; }
   .copy-btn {
     display: inline-flex; align-items: center; gap: 4px;
-    font-size: 0.68rem; color: #475569; background: #1e2d42;
-    border: 1px solid #2a3d55; border-radius: 6px; padding: 2px 8px;
+    font-size: 0.68rem; color: #475569; background: #111;
+    border: 1px solid #252525; border-radius: 6px; padding: 2px 8px;
     cursor: pointer; transition: all 0.15s;
   }
-  .copy-btn:hover { color: #94a3b8; border-color: #3d4f67; }
+  .copy-btn:hover { color: #94a3b8; border-color: #333; }
 
   .todo-list { list-style: none; display: flex; flex-direction: column; gap: 0.45rem; }
   .todo-item {
     display: flex; align-items: center; gap: 0.6rem;
-    background: #162032; border: 1px solid #243447; border-radius: 9px;
+    background: #0c0c0c; border: 1px solid #1e1e1e; border-radius: 9px;
     padding: 0.5rem 0.75rem;
   }
   .todo-check {
@@ -512,13 +520,13 @@
     padding: 2px 7px; border-radius: 999px;
   }
   .prio-high { color: #f87171; background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25); }
-  .prio-mid  { color: #fbbf24; background: rgba(251,191,36,0.1);  border: 1px solid rgba(251,191,36,0.25);  }
+  .prio-mid  { color: #22d3ee; background: rgba(34,211,238,0.1);  border: 1px solid rgba(34,211,238,0.25);  }
   .prio-low  { color: #4ade80; background: rgba(74,222,128,0.1);  border: 1px solid rgba(74,222,128,0.25);  }
 
   .assignee-badge {
     font-size: 0.73rem; font-weight: 600; flex-shrink: 0;
-    color: #fbbf24; background: rgba(251,191,36,0.1);
-    border: 1px solid rgba(251,191,36,0.2); padding: 2px 8px; border-radius: 999px;
+    color: #22d3ee; background: rgba(34,211,238,0.1);
+    border: 1px solid rgba(34,211,238,0.2); padding: 2px 8px; border-radius: 999px;
   }
 
   .empty-state {
@@ -530,30 +538,30 @@
 
   .error { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2); color: #f87171; border-radius: 10px; padding: 0.75rem; font-size: 0.83rem; }
 
-  footer { text-align: center; font-size: 0.68rem; color: #475569; padding: 0.6rem; border-top: 1px solid #243447; }
+  footer { text-align: center; font-size: 0.68rem; color: #475569; padding: 0.6rem; border-top: 1px solid #1e1e1e; }
   footer a { color: #64748b; text-decoration: none; }
   footer a:hover { color: #94a3b8; }
 
   .audio-examples-row { display: flex; flex-direction: column; gap: 0.4rem; }
   .audio-example-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-  .audio-example-item { display: flex; align-items: center; gap: 0.4rem; background: #162032; border: 1px solid #2a3d55; border-radius: 999px; padding: 0.2rem 0.6rem 0.2rem 0.3rem; }
+  .audio-example-item { display: flex; align-items: center; gap: 0.4rem; background: #0c0c0c; border: 1px solid #252525; border-radius: 999px; padding: 0.2rem 0.6rem 0.2rem 0.3rem; }
   .audio-label { font-size: 0.78rem; color: #b0bfcc; }
   .play-btn {
     width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
-    background: #2a3d55; border: 1px solid #3d5570; color: #94a3b8;
+    background: #252525; border: 1px solid #333; color: #94a3b8;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; transition: all 0.15s;
   }
   .play-btn:hover { background: #334d6b; color: #e2e8f0; }
-  .play-btn.playing { background: rgba(251,191,36,0.15); border-color: rgba(251,191,36,0.4); color: #fbbf24; }
+  .play-btn.playing { background: rgba(34,211,238,0.15); border-color: rgba(34,211,238,0.4); color: #22d3ee; }
   .transcribe-btn {
     display: inline-flex; align-items: center; gap: 0.25rem;
     font-size: 0.72rem; font-weight: 500;
-    color: #94a3b8; background: #1e2d42; border: 1px solid #2a3d55;
+    color: #94a3b8; background: #111; border: 1px solid #252525;
     padding: 0.15rem 0.5rem; border-radius: 999px;
     cursor: pointer; transition: all 0.15s; white-space: nowrap;
   }
-  .transcribe-btn:hover:not(:disabled) { color: #fbbf24; border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.06); }
+  .transcribe-btn:hover:not(:disabled) { color: #22d3ee; border-color: rgba(34,211,238,0.4); background: rgba(34,211,238,0.06); }
   .transcribe-btn:disabled { opacity: 0.4; cursor: default; }
 
   .dropzone-label { font-size: 0.82rem; color: #c8d8e4; font-weight: 500; }
@@ -564,9 +572,9 @@
     transition: all 0.2s; text-align: center; background: rgba(255,255,255,0.02);
   }
   .dropzone:hover, .dropzone.drag-over {
-    border-color: #fbbf24; color: #e2e8f0; background: rgba(251,191,36,0.05);
+    border-color: #22d3ee; color: #e2e8f0; background: rgba(34,211,238,0.05);
   }
-  .dropzone.busy { cursor: default; border-color: #3d4f67; color: #94a3b8; }
+  .dropzone.busy { cursor: default; border-color: #333; color: #94a3b8; }
   .spinner-dark {
     width: 14px; height: 14px; border: 2px solid rgba(148,163,184,0.2);
     border-top-color: #94a3b8; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0;
@@ -575,7 +583,7 @@
   @media (max-width: 768px) {
     .content { grid-template-columns: 1fr; }
     .subtitle { display: none; }
-    .flow-steps { gap: 0.3rem; }
-    .flow-arrow { display: none; }
+    .flow-diagram { gap: 0.3rem; }
+    .flow-common .flow-arrow { display: none; }
   }
 </style>
