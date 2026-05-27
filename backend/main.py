@@ -2,6 +2,7 @@ import os
 import json
 import time
 from collections import defaultdict
+import sentry_sdk
 from fastapi import FastAPI, Request, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -9,6 +10,9 @@ from pydantic import BaseModel
 from groq import Groq
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+
+if dsn := os.getenv("SENTRY_DSN", ""):
+    sentry_sdk.init(dsn=dsn, traces_sample_rate=0.2)
 
 RATE_LIMIT = 20
 RATE_WINDOW = 3600
